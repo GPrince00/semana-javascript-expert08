@@ -8,22 +8,21 @@ const worker = new Worker("./src/worker/worker.js", {
 });
 
 worker.onmessage = ({ data }) => {
-  console.log("recived on view process", data);
+  if (data.status !== "done") return;
+  clock.stop();
+  view.updateElapsedTime(`Process took ${took.replace("ago", "")}`);
 };
-
-worker.postMessage("send from Father!!");
 
 let took = "";
 view.configureOnFileChange((file) => {
+  worker.postMessage({
+    file,
+  });
+
   clock.start((time) => {
     took = time;
     view.updateElapsedTime(`Process started ${time}`);
   });
-
-  setTimeout(() => {
-    clock.stop();
-    view.updateElapsedTime(`Process took ${took.replace("ago", "")}`);
-  }, 5000);
 });
 
 async function fakeFetch() {
