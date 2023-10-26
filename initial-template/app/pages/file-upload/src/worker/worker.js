@@ -1,3 +1,5 @@
+import VideoProcessor from "./videoProcessor.js";
+
 const qvgaConstraints = {
   width: 320,
   height: 240,
@@ -12,7 +14,13 @@ const encoderConfig = {
   hardwareAcceleration: "prefer-software",
 };
 
-onmessage = ({ data }) => {
+const videoProcessor = new VideoProcessor();
+
+onmessage = async ({ data }) => {
+  await videoProcessor.start({
+    file: data.file,
+    encoderConfig,
+  });
   self.postMessage({
     status: "done",
   });
