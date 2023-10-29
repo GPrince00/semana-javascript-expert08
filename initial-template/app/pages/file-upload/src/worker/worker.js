@@ -1,3 +1,4 @@
+import CanvasRenderer from "./canvasRender.js";
 import MP4Demuxer from "./mp4Demuxer.js";
 import VideoProcessor from "./videoProcessor.js";
 
@@ -17,16 +18,15 @@ const encoderConfig = {
 
 const mp4Demuxer = new MP4Demuxer();
 const videoProcessor = new VideoProcessor({
-  mp4Demuxer
+  mp4Demuxer,
 });
 
 onmessage = async ({ data }) => {
+  const renderFrame = CanvasRenderer.getRenderer(data.canvas);
   await videoProcessor.start({
     file: data.file,
+    renderFrame,
     encoderConfig,
-    sendMessage(message) {
-      self.postMessage(message)
-    }
   });
   self.postMessage({
     status: "done",
