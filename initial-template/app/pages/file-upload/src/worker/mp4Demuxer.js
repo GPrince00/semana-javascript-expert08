@@ -1,4 +1,4 @@
-import { DataStream, createFile } from "../deps/mp4box.0.5.2.js";
+import { createFile, DataStream } from "../deps/mp4box.0.5.2.js";
 
 export default class MP4Demuxer {
   #onConfig;
@@ -8,14 +8,13 @@ export default class MP4Demuxer {
    *
    * @param {ReadableStream} stream
    * @param {object} options
-   * @param {{config: object} => void} options.onConfig
+   * @param {(config: object) => void} options.onConfig
    *
-   * @return {Promise<void>}
-   *
+   * @returns {Promise<void>}
    */
-  async run(stream, { onConfig, onChunck }) {
+  async run(stream, { onConfig, onChunk }) {
     this.#onConfig = onConfig;
-    this.#onChunk = onChunck;
+    this.#onChunk = onChunk;
 
     this.#file = createFile();
     this.#file.onReady = this.#onReady.bind(this);
@@ -61,6 +60,7 @@ export default class MP4Demuxer {
       description: this.#description(track),
       durationSecs: info.duration / info.timescale,
     });
+
     this.#file.setExtractionOptions(track.id);
     this.#file.start();
   }
@@ -85,6 +85,7 @@ export default class MP4Demuxer {
         this.#file.flush();
       },
     });
+
     return stream.pipeTo(consumeFile);
   }
 }
