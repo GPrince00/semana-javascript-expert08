@@ -32,14 +32,24 @@ export default class MP4Demuxer {
       if (box) {
         const stream = new DataStream(undefined, 0, DataStream.BIG_ENDIAN);
         box.write(stream);
-        return new Uint8Array(stream.buffer, 8); //Remove the box header.
+        return new Uint8Array(stream.buffer, 8); // Remove the box header.
       }
     }
     throw new Error("avcC, hvcC, vpcC, or av1C box not found");
   }
 
-  #onSamples(trackId, ref, samples) {
-    debugger;
+  #onSamples(track_id, ref, samples) {
+    // Generate and emit an EncodedVideoChunk for each demuxed sample.
+    for (const sample of samples) {
+      this.#onChunk(
+        new EncodedVideoChunk({
+          type: sample.is_sync ? "key" : "delta",
+          timestamp: (1e6 * sample.cts) / sample.timescale,
+          duration: (1e6 * sample.duration) / sample.timescale,
+          data: sample.data,
+        })
+      );
+    }
   }
 
   #onReady(info) {
