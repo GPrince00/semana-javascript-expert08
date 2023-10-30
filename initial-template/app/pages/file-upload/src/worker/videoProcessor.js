@@ -44,11 +44,11 @@ export default class VideoProcessor {
               decoder.decode(chunk);
             },
           })
-          .then(() => {
-            setTimeout(() => {
-              controller.close();
-            }, 1000);
-          });
+          // .then(() => {
+          //   setTimeout(() => {
+          //     controller.close();
+          //   }, 1000);
+          // });
       },
     });
   }
@@ -69,17 +69,17 @@ export default class VideoProcessor {
 
         _encoder = new VideoEncoder({
           /**
-           * 
-           * @param {EncodedVideoChunk} frame 
-           * @param {EncodedVideoChunkMetadata} config 
+           *
+           * @param {EncodedVideoChunk} frame
+           * @param {EncodedVideoChunkMetadata} config
            */
           output: (frame, config) => {
-            if(config.decoderConfig) {
+            if (config.decoderConfig) {
               const decoderConfig = {
-                type: 'config',
-                config: config.decoderConfig
-              }
-              controller.enqueue(decoderConfig)
+                type: "config",
+                config: config.decoderConfig,
+              };
+              controller.enqueue(decoderConfig);
             }
             controller.enqueue(frame);
           },
@@ -105,15 +105,48 @@ export default class VideoProcessor {
     };
   }
 
+  renderDecodedFrameAndGetEncodedChunks(renderFrame) {
+    let _decoder;
+    return new TransformStream({
+      start: (controller) => {
+        _decoder = new VideoDecoder({
+          output(frame) {
+            renderFrame(frame);
+          },
+          error(e) {
+            console.error("error at renderFrames", e);
+            controller.error(e);
+          },
+        });
+      },
+      /**
+       *
+       * @param {EncoderVideoChunk} encodedChunk
+       * @param {TransformStreamDefaultController} controller
+       */
+      async transform(encodedChunk, controller) {
+        if (encodedChunk.type === "config") {
+          await _decoder.configure(encodedChunk.config);
+          return;
+        }
+        _decoder.decode(encodedChunk);
+
+        // need the encoded version to use webM
+        controller.enqueue(encodedChunk);
+      },
+    });
+  }
+
   async start({ file, encoderConfig, renderFrame }) {
     const stream = file.stream();
     const fileName = file.name.split("/").pop().replace(".mp4", "");
     await this.mp4Decoder(stream)
       .pipeThrough(this.encode144p(encoderConfig))
+      .pipeThrough(this.renderDecodedFrameAndGetEncodedChunks(renderFrame))
       .pipeTo(
         new WritableStream({
           write(frame) {
-            debugger
+            // debugger;
             // renderFrame(frame);
           },
         })
