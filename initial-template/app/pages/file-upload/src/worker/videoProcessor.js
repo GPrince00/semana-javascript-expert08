@@ -1,13 +1,17 @@
 export default class VideoProcessor {
   #mp4Demuxer;
+  #webMWriter;
   /**
    *
    * @param {object} options
    * @param {import('./mp4Demuxer.js').default} options.mp4Demuxer
+   * @param {import('./../deps/webm-writer2.js').default} options.webMWriter
    */
-  constructor({ mp4Demuxer }) {
+  constructor({ mp4Demuxer, webMWriter }) {
     this.#mp4Demuxer = mp4Demuxer;
+    this.#webMWriter = webMWriter;
   }
+
   /** @returns {ReadableStream}   */
   mp4Decoder(stream) {
     return new ReadableStream({
@@ -23,32 +27,29 @@ export default class VideoProcessor {
           },
         });
 
-        return this.#mp4Demuxer
-          .run(stream, {
-            async onConfig(config) {
-              const { supported } = await VideoDecoder.isConfigSupported(
+        return this.#mp4Demuxer.run(stream, {
+          async onConfig(config) {
+            const { supported } = await VideoDecoder.isConfigSupported(config);
+            if (!supported) {
+              console.error(
+                "mp4Muxer VideoDecoder config not supported!",
                 config
               );
-              if (!supported) {
-                console.error(
-                  "mp4Muxer VideoDecoder config not supported!",
-                  config
-                );
-                return;
-              }
+              return;
+            }
 
-              decoder.configure(config);
-            },
-            /** @param {EncodedVideoChunk} chunk */
-            onChunk(chunk) {
-              decoder.decode(chunk);
-            },
-          })
-          // .then(() => {
-          //   setTimeout(() => {
-          //     controller.close();
-          //   }, 1000);
-          // });
+            decoder.configure(config);
+          },
+          /** @param {EncodedVideoChunk} chunk */
+          onChunk(chunk) {
+            decoder.decode(chunk);
+          },
+        });
+        // .then(() => {
+        //   setTimeout(() => {
+        //     controller.close();
+        //   }, 1000);
+        // });
       },
     });
   }
@@ -137,16 +138,32 @@ export default class VideoProcessor {
     });
   }
 
+  tranformIntoWebM() {
+    const writable = new WritableStream({
+      write: (chunk) => {
+        this.#webMWriter.addFrame(chunk);
+      },
+      close() {
+        debugger;
+      },
+    });
+    return {
+      readable: this.#webMWriter.getStream(),
+      writable,
+    };
+  }
+
   async start({ file, encoderConfig, renderFrame }) {
     const stream = file.stream();
     const fileName = file.name.split("/").pop().replace(".mp4", "");
     await this.mp4Decoder(stream)
       .pipeThrough(this.encode144p(encoderConfig))
       .pipeThrough(this.renderDecodedFrameAndGetEncodedChunks(renderFrame))
+      .pipeThrough(this.tranformIntoWebM())
       .pipeTo(
         new WritableStream({
           write(frame) {
-            // debugger;
+            debugger;
             // renderFrame(frame);
           },
         })
