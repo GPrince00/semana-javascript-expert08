@@ -53,15 +53,70 @@ export default class VideoProcessor {
     });
   }
 
-  async start({ file, renderFrame }) {
+  encode144p(encoderConfig) {
+    let _encoder;
+    const readable = new ReadableStream({
+      start: async (controller) => {
+        const { supported } = await VideoEncoder.isConfigSupported(
+          encoderConfig
+        );
+        if (!supported) {
+          const message = "encoder144p VideoDecoder config not supported!";
+          console.error(message, encoderConfig);
+          controller.error(message);
+          return;
+        }
+
+        _encoder = new VideoEncoder({
+          /**
+           * 
+           * @param {EncodedVideoChunk} frame 
+           * @param {EncodedVideoChunkMetadata} config 
+           */
+          output: (frame, config) => {
+            if(config.decoderConfig) {
+              const decoderConfig = {
+                type: 'config',
+                config: config.decoderConfig
+              }
+              controller.enqueue(decoderConfig)
+            }
+            controller.enqueue(frame);
+          },
+          error: (err) => {
+            console.error("VideoEncoder 144p", err);
+            controller.error(err);
+          },
+        });
+        await _encoder.configure(encoderConfig);
+      },
+    });
+
+    const writable = new WritableStream({
+      async write(frame) {
+        _encoder.encode(frame);
+        frame.close();
+      },
+    });
+
+    return {
+      readable,
+      writable,
+    };
+  }
+
+  async start({ file, encoderConfig, renderFrame }) {
     const stream = file.stream();
     const fileName = file.name.split("/").pop().replace(".mp4", "");
-    await this.mp4Decoder(stream).pipeTo(
-      new WritableStream({
-        write(frame) {
-          renderFrame(frame);
-        },
-      })
-    );
+    await this.mp4Decoder(stream)
+      .pipeThrough(this.encode144p(encoderConfig))
+      .pipeTo(
+        new WritableStream({
+          write(frame) {
+            debugger
+            // renderFrame(frame);
+          },
+        })
+      );
   }
 }
