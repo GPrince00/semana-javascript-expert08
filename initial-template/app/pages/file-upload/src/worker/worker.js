@@ -12,9 +12,15 @@ const encoderConfig = {
   ...qvgaConstraints,
   bitrate: 10e6,
   // WebM
-  codec: "vp09.00.10.08",
-  pt: 4,
+  // codec: "vp09.00.10.08",
+  // pt: 4,
+  // hardwareAcceleration: "prefer-software",
+
+  //MP4
+  codec: "avc1.42002A",
+  pt: 1,
   hardwareAcceleration: "prefer-software",
+  avc: { format: "annexb" },
 };
 
 const webMWriterConfig = {
@@ -38,8 +44,8 @@ onmessage = async ({ data }) => {
     renderFrame,
     encoderConfig,
     sendMessage: (message) => {
-      self.postMessage(message)
-    }
+      self.postMessage(message);
+    },
   });
   // self.postMessage({
   //   status: "done",
