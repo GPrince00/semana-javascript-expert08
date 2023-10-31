@@ -169,10 +169,13 @@ export default class VideoProcessor {
           },
           flush: () => {
             // debugger;
+            // sendMessage({
+            //   status: "done",
+            //   buffers: this.#buffers,
+            //   filename: fileName.concat("-144p.webm"),
+            // });
             sendMessage({
               status: "done",
-              buffers: this.#buffers,
-              filename: fileName.concat("-144p.webm"),
             });
           },
         })
