@@ -1,6 +1,7 @@
 export default class VideoProcessor {
   #mp4Demuxer;
   #webMWriter;
+  #buffers = [];
   /**
    *
    * @param {object} options
@@ -153,17 +154,33 @@ export default class VideoProcessor {
     };
   }
 
-  async start({ file, encoderConfig, renderFrame }) {
+  async start({ file, encoderConfig, renderFrame, sendMessage }) {
     const stream = file.stream();
     const fileName = file.name.split("/").pop().replace(".mp4", "");
     await this.mp4Decoder(stream)
       .pipeThrough(this.encode144p(encoderConfig))
       .pipeThrough(this.renderDecodedFrameAndGetEncodedChunks(renderFrame))
       .pipeThrough(this.tranformIntoWebM())
+      .pipeThrough(
+        new TransformStream({
+          transform: ({ data, position }, controller) => {
+            this.#buffers.push(data);
+            controller.enqueue(data);
+          },
+          flush: () => {
+            // debugger;
+            sendMessage({
+              status: "done",
+              buffers: this.#buffers,
+              filename: fileName.concat("-144p.webm"),
+            });
+          },
+        })
+      )
       .pipeTo(
         new WritableStream({
           write(frame) {
-            debugger;
+            // debugger;
             // renderFrame(frame);
           },
         })
