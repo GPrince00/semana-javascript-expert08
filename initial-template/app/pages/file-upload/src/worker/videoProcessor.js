@@ -16,7 +16,7 @@ export default class VideoProcessor {
     this.#service = service;
   }
 
-  /** @returns {ReadableStream}   */
+  /** @returns {ReadableStream} */
   mp4Decoder(stream) {
     return new ReadableStream({
       start: async (controller) => {
@@ -33,15 +33,6 @@ export default class VideoProcessor {
 
         return this.#mp4Demuxer.run(stream, {
           async onConfig(config) {
-            const { supported } = await VideoDecoder.isConfigSupported(config);
-            if (!supported) {
-              console.error(
-                "mp4Muxer VideoDecoder config not supported!",
-                config
-              );
-              return;
-            }
-
             decoder.configure(config);
           },
           /** @param {EncodedVideoChunk} chunk */
@@ -66,7 +57,7 @@ export default class VideoProcessor {
           encoderConfig
         );
         if (!supported) {
-          const message = "encoder144p VideoDecoder config not supported!";
+          const message = "encode144p VideoEncoder config not supported!";
           console.error(message, encoderConfig);
           controller.error(message);
           return;
@@ -110,7 +101,7 @@ export default class VideoProcessor {
     };
   }
 
-  renderDecodedFrameAndGetEncodedChunks(renderFrame) {
+  renderDecodedFramesAndGetEncodedChunks(renderFrame) {
     let _decoder;
     return new TransformStream({
       start: (controller) => {
@@ -126,7 +117,7 @@ export default class VideoProcessor {
       },
       /**
        *
-       * @param {EncoderVideoChunk} encodedChunk
+       * @param {EncodedVideoChunk} encodedChunk
        * @param {TransformStreamDefaultController} controller
        */
       async transform(encodedChunk, controller) {
@@ -142,7 +133,7 @@ export default class VideoProcessor {
     });
   }
 
-  tranformIntoWebM() {
+  transformIntoWebM() {
     const writable = new WritableStream({
       write: (chunk) => {
         this.#webMWriter.addFrame(chunk);
@@ -181,6 +172,7 @@ export default class VideoProcessor {
       async write({ data }) {
         chunks.push(data);
         byteCount += data.byteLength;
+        // if is less than 10mb don't do the upload!
         if (byteCount <= 10e6) return;
         await triggerUpload(chunks);
         // renderFrame(frame);
@@ -197,8 +189,8 @@ export default class VideoProcessor {
     const fileName = file.name.split("/").pop().replace(".mp4", "");
     await this.mp4Decoder(stream)
       .pipeThrough(this.encode144p(encoderConfig))
-      .pipeThrough(this.renderDecodedFrameAndGetEncodedChunks(renderFrame))
-      .pipeThrough(this.tranformIntoWebM())
+      .pipeThrough(this.renderDecodedFramesAndGetEncodedChunks(renderFrame))
+      .pipeThrough(this.transformIntoWebM())
       // .pipeThrough(
       //   new TransformStream({
       //     transform: ({ data, position }, controller) => {
@@ -216,13 +208,8 @@ export default class VideoProcessor {
       //   })
       // )
       .pipeTo(this.upload(fileName, "144p", "webm"));
-    // .pipeTo(
-    //   new WritableStream({
-    //     write(frame) {
-    //       // debugger;
-    //       // renderFrame(frame);
-    //     },
-    //   })
-    // );
+    sendMessage({
+      status: "done",
+    });
   }
 }

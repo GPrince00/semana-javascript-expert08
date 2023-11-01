@@ -1,4 +1,4 @@
-import CanvasRenderer from "./canvasRender.js";
+import CanvasRenderer from "./canvasRenderer.js";
 import MP4Demuxer from "./mp4Demuxer.js";
 import VideoProcessor from "./videoProcessor.js";
 import WebMWriter from "./../deps/webm-writer2.js";
@@ -25,6 +25,7 @@ const encoderConfig = {
 };
 
 const webMWriterConfig = {
+  ...qvgaConstraints,
   codec: "VP9",
   width: encoderConfig.width,
   height: encoderConfig.height,
